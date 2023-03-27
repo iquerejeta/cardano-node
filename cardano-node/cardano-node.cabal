@@ -234,6 +234,7 @@ test-suite cardano-node-test
                       , aeson >= 1.5.6.0
                       , bytestring
                       , cardano-api
+                      , cardano-ledger-core
                       , cardano-node
                       , cardano-slotting >= 0.1
                       , directory
@@ -242,17 +243,24 @@ test-suite cardano-node-test
                       , iproute
                       , mtl
                       , ouroboros-consensus
+                      , ouroboros-consensus-byron
+                      , ouroboros-consensus-shelley
+                      , ouroboros-consensus-cardano
                       , ouroboros-consensus-diffusion
                       , ouroboros-network
                       , ouroboros-network-api
-                      , mtl
                       , text
+                      , tasty
+                      , tasty-golden
                       , time
+                      , tree-diff
+                      , pretty
                       , vector
 
   other-modules:        Test.Cardano.Node.FilePermissions
                         Test.Cardano.Node.Gen
                         Test.Cardano.Node.Json
                         Test.Cardano.Node.POM
+                        Test.Cardano.Tracing.OrphanInstances.HardFork
 
   ghc-options:          -threaded -rtsopts -with-rtsopts=-N -with-rtsopts=-T

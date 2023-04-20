@@ -774,6 +774,16 @@ module Cardano.Api (
     queryExpr,
     determineEraExpr,
 
+    -- ** Updated monadic queries
+    LocalStateQueryError(..),
+    determineEraExprN,
+    determineEraInModeN,
+    determineShelleyBasedEraN,
+    executeLocalStateQueryExprN,
+    setupLocalStateQueryExprN,
+    queryExprN,
+    queryExprE,
+
     chainPointToSlotNo,
     chainPointToHeaderHash,
     makeChainTip,

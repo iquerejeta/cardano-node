@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module Testnet.Util.Runtime
   ( LeadershipSlot(..)
@@ -19,16 +20,21 @@ module Testnet.Util.Runtime
   , poolNodeStdout
   , readNodeLoggingFormat
   , startNode
+  , ShelleyGenesis(..)
+  , shelleyGenesis
+  , fromNominalDiffTimeMicro
   ) where
 
 import           Prelude
 
 import           Control.Monad
-import           Data.Aeson (FromJSON)
+import           Control.Monad.IO.Class
+import           Data.Aeson (FromJSON, eitherDecodeFileStrict')
 import qualified Data.List as L
-
 import           Data.Text (Text)
+
 import           GHC.Generics (Generic)
+import           GHC.Stack
 import qualified Hedgehog as H
 import           Hedgehog.Extras.Stock.IO.Network.Sprocket (Sprocket (..))
 import qualified Hedgehog.Extras.Stock.IO.Network.Sprocket as IO
@@ -42,6 +48,8 @@ import qualified System.Info as OS
 import qualified System.IO as IO
 import qualified System.Process as IO
 
+import           Cardano.Ledger.Crypto (StandardCrypto)
+import           Cardano.Ledger.Shelley.Genesis
 import qualified Testnet.Util.Process as H
 
 data NodeLoggingFormat = NodeLoggingFormatAsJson | NodeLoggingFormatAsText deriving (Eq, Show)
@@ -107,6 +115,10 @@ bftSprockets = fmap nodeSprocket . bftNodes
 
 poolSprockets :: TestnetRuntime -> [Sprocket]
 poolSprockets = fmap (nodeSprocket . poolRuntime) . poolNodes
+
+shelleyGenesis :: (H.MonadTest m, MonadIO m, HasCallStack) => TestnetRuntime -> m (ShelleyGenesis StandardCrypto)
+shelleyGenesis TestnetRuntime{shelleyGenesisFile} =
+  H.evalEither =<< H.evalIO (eitherDecodeFileStrict' shelleyGenesisFile)
 
 readNodeLoggingFormat :: String -> Either String NodeLoggingFormat
 readNodeLoggingFormat = \case

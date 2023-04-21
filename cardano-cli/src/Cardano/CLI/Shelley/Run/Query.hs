@@ -196,6 +196,8 @@ runQueryCmd cmd =
       runQueryPoolState mNodeSocketPath consensusModeParams network poolid
     QueryTxMempool mNodeSocketPath consensusModeParams network op mOutFile ->
       runQueryTxMempool mNodeSocketPath consensusModeParams network op mOutFile
+    QuerySlotNumber mNodeSocketPath consensusModeParams network utcTime ->
+      runQuerySlotNumber mNodeSocketPath consensusModeParams network utcTime
 
 runQueryProtocolParameters
   :: Maybe SocketPath
@@ -360,8 +362,6 @@ runQueryTip mNodeSocketPath (AnyConsensusModeParams cModeParams) network mOutFil
 
 -- | Query the UTxO, filtered by a given set of addresses, from a Shelley node
 -- via the local state query protocol.
---
-
 runQueryUTxO
   :: Maybe SocketPath
   -> AnyConsensusModeParams
@@ -718,6 +718,17 @@ runQueryTxMempool mNodeSocketPath (AnyConsensusModeParams cModeParams) network q
     Just (File oFp) -> handleIOExceptT (ShelleyQueryCmdWriteFileError . FileIOError oFp)
         $ LBS.writeFile oFp renderedResult
 
+runQuerySlotNumber
+  :: Maybe SocketPath
+  -> AnyConsensusModeParams
+  -> NetworkId
+  -> UTCTime
+  -> ExceptT ShelleyQueryCmdError IO ()
+runQuerySlotNumber mNodeSocketPath aCmp network utcTime = do
+  sockPath <- maybe (lift readEnvSocketPath) (pure . Right) mNodeSocketPath
+    & onLeft (left . ShelleyQueryCmdEnvVarSocketErr)
+  SlotNo slotNo <- utcTimeToSlotNo sockPath aCmp network utcTime
+  liftIO $ print slotNo
 
 -- | Obtain stake snapshot information for a pool, plus information about the total active stake.
 -- This information can be used for leader slot calculation, for example, and has been requested by SPOs.

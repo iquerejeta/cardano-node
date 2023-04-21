@@ -38,14 +38,16 @@ library
                       , cardano-cli
                       , cardano-crypto-class
                       , cardano-git-rev
+                      , cardano-ledger-core
                       , cardano-ledger-byron
+                      , cardano-ledger-shelley
                       , cardano-node
                       , containers
                       , directory
                       , exceptions
                       , filepath
                       , hedgehog
-                      , hedgehog-extras ^>= 0.4.2
+                      , hedgehog-extras ^>= 0.4.3
                       , optparse-applicative-fork
                       , ouroboros-network
                       , ouroboros-network-api
@@ -64,6 +66,7 @@ library
 
   hs-source-dirs:       src
   exposed-modules:      Cardano.Testnet
+                        Testnet.Babbage
                         Testnet.Byron
                         Testnet.Util.Assert
                         Testnet.Util.Base
@@ -79,7 +82,6 @@ library
                         Parsers.Shelley
                         Parsers.Version
                         Testnet
-                        Testnet.Babbage
                         Testnet.Cardano
                         Testnet.Conf
                         Testnet.Commands.Genesis
@@ -115,6 +117,7 @@ test-suite cardano-testnet-tests
                         Test.Cli.Babbage.LeadershipSchedule
                         Test.Cli.Babbage.StakeSnapshot
                         Test.Cli.KesPeriodInfo
+                        Test.Cli.QuerySlotNumber
                         Test.FoldBlocks
                         Test.Misc
                         Test.Node.Shutdown
@@ -132,7 +135,7 @@ test-suite cardano-testnet-tests
                       , directory
                       , filepath
                       , hedgehog
-                      , hedgehog-extras ^>= 0.4.2
+                      , hedgehog-extras ^>= 0.4.3
                       , process
                       , tasty
                       , text

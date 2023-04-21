@@ -12,6 +12,7 @@ module Testnet.Babbage
   , PaymentKeyPair(..)
 
   , babbageTestnet
+  , startTimeOffsetSeconds
   ) where
 
 import           Prelude

@@ -12,7 +12,7 @@ module Cardano.Api.IPC.AnyQuery
   ( determineEraInModeAnyQuery
   , determineEraExprAnyQuery
   , determineShelleyBasedEraAnyQuery
-  , executeLocalStateQueryExpr
+  , executeLocalStateQueryExprAnyQuery
   , queryExprAnyQuery
   ) where
 
@@ -62,12 +62,12 @@ import           Cardano.Api.Query
 
 
 -- | Execute a local state query expression.
-executeLocalStateQueryExpr
+executeLocalStateQueryExprAnyQuery
   :: LocalNodeConnectInfo mode
   -> Maybe ChainPoint
   -> LocalStateQueryExprWithError AllQueryErrors (BlockInMode mode) ChainPoint (AnyQuery mode) () IO a
   -> IO (Either AllQueryErrors a)
-executeLocalStateQueryExpr connectInfo mpoint f = do
+executeLocalStateQueryExprAnyQuery connectInfo mpoint f = do
   tmvResultLocalState <- newEmptyTMVarIO
   let waitResult = readTMVar tmvResultLocalState
 

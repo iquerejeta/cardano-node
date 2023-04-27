@@ -367,20 +367,15 @@ runQueryUTxO mNodeSocketPath (AnyConsensusModeParams cModeParams)
 
   let localNodeConnInfo = LocalNodeConnectInfo cModeParams network sockPath
 
-  anyE@(AnyCardanoEra era) <- lift (determineEra cModeParams localNodeConnInfo)
+  (AnyCardanoEra era) <- lift (determineEra cModeParams localNodeConnInfo)
     & onLeft (left . ShelleyQueryCmdAcquireFailure)
 
-  let cMode = consensusModeOnly cModeParams
   sbe <- getSbe $ cardanoEraStyle era
 
-  eInMode <- pure (toEraInMode era cMode)
-    & onNothing (left (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE))
-
-  let query = QueryInModeEraSbe' eInMode $ QueryInShelleyBasedEra sbe (QueryUTxO qfilter)
-      sbeQuery = queryExprSbe  query
-
   result <- firstExceptT ShelleyQueryCmdSbeOnlyQueryError
-          $ newExceptT $ executeLocalStateQueryExprSbe localNodeConnInfo Nothing sbeQuery
+          $ newExceptT $ executeLocalStateQueryExprSbe localNodeConnInfo Nothing $ do
+                           eInMode <- determineEraInMode era cModeParams
+                           queryExprSbe $ QueryInModeEraSbe' eInMode $ QueryInShelleyBasedEra sbe (QueryUTxO qfilter)
 
   writeFilteredUTxOs sbe mOutFile result
 
@@ -780,7 +775,7 @@ runQueryProtocolState
 runQueryProtocolState mNodeSocketPath (AnyConsensusModeParams cModeParams) network mOutFile = do
   SocketPath sockPath <- maybe (lift readEnvSocketPath) (pure . Right) mNodeSocketPath
     & onLeft (left . ShelleyQueryCmdEnvVarSocketErr)
-
+  -- TODO: Left off here. You should
   let localNodeConnInfo = LocalNodeConnectInfo cModeParams network sockPath
 
   anyE@(AnyCardanoEra era) <- lift (determineEra cModeParams localNodeConnInfo)
@@ -1054,9 +1049,14 @@ runQueryStakePools mNodeSocketPath (AnyConsensusModeParams cModeParams) network 
 
   let localNodeConnInfo = LocalNodeConnectInfo cModeParams network sockPath
 
-  --_execState <- liftIO $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ do
-  --                 AnyCardanoEra era <- determineEraExpr cModeParams
-  --                 queryExprE cModeParams era QueryStakePools
+  execState <- liftIO $ executeLocalStateQueryExprAnyQuery localNodeConnInfo Nothing $ do
+                   AnyCardanoEra era  <- determineEraExprAnyQuery cModeParams
+                   eInMode <- determineEraInModeAnyQuery era cModeParams
+                   case cardanoEraStyle era of
+                    LegacyByronEra -> undefined
+                    ShelleyBasedEra sbe -> do
+                      let q = QInModeSbe $ QueryInModeEraSbe' eInMode $ QueryInShelleyBasedEra sbe QueryStakePools
+                      queryExprAnyQuery q
   --case execState of
   --  Left (SameError (AquFail f)) -> left $ ShelleyQueryCmdAcquireFailure f
   --  Left (SameError (UnsuppVer f)) -> left $ ShelleyQueryCmdUnsupportedNtcVersion f

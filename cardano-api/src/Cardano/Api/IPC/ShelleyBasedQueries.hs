@@ -9,8 +9,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Api.IPC.ShelleyBasedQueries
-  ( LocalStateQueryExpr
-  , determineEraInMode
+  ( determineEraInMode
   , determineShelleyBasedEra
   , executeLocalStateQueryExprSbe
   , queryExprSbe
@@ -71,14 +70,10 @@ return Either
 class Instantiate (q :: Type) where
   type InstantiateError q :: Type
   type ReduceQuery q :: Type -> Type
-  type QuerySpecificLocalNodeClientProtocols q :: Type
 
 instance Instantiate (QueryInModeEraSbe mode result) where
   type InstantiateError (QueryInModeEraSbe mode result) = SBEQueryError
   type ReduceQuery (QueryInModeEraSbe mode result) = QueryInModeEraSbe mode
-  type QuerySpecificLocalNodeClientProtocols (QueryInModeEraSbe mode result) = LocalNodeClientProtocolsInModeSbe mode
-
--- TODO: Have a class method for queryExprSbe!! First makes sure your sbe query stuff works
 
 --- Types and functions for connectToLocalNodeWithVersion
 
@@ -378,13 +373,6 @@ setupLocalStateQueryExpr waitDone mPointVar' resultVar' ntcVersion f =
         pure $ Net.Query.SendMsgDone ()
     }
 
-
-
-
-
--- Has failure modes: UnsuppVer, QueryEraMismatch'
--- | Handles queries that return `Either EraMismatch a`
--- Not sure which is correct
 
 -- | Use 'queryExprSbe' in a do block to construct monadic local state queries.
 queryExprSbe

@@ -1,13 +1,10 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DerivingVia #-}
-{-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralisedNewtypeDeriving #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
 module Cardano.Api.IPC.Api
@@ -18,20 +15,15 @@ import           Control.Monad.Except
 import           Data.Kind
 import           Data.Proxy
 
-import           Control.Concurrent.STM
 import           Control.Monad.Reader
 import           Control.Monad.Trans.Cont
-import           Control.Monad.Trans.Except.Extra (left)
 
 import           Cardano.Ledger.Shelley.Scripts ()
 import qualified Ouroboros.Network.Protocol.LocalStateQuery.Client as Net.Query
 import           Ouroboros.Network.Protocol.LocalStateQuery.Type (AcquireFailure (..))
 
 import           Cardano.Api.Block
-import           Cardano.Api.Eras
 import           Cardano.Api.IPC
-import           Cardano.Api.IPC.Version (NodeToClientVersionOf (nodeToClientVersionOf))
-import           Cardano.Api.Modes
 import           Cardano.Api.Query
 
 

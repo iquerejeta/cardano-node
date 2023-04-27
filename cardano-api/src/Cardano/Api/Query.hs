@@ -43,8 +43,8 @@ module Cardano.Api.Query (
     -- * Internal conversion functions
     toConsensusQuery,
     fromConsensusQueryResult,
-    toConsensusQueryTotal,
-    fromConsensusQueryResultTotal,
+    toConsensusAnyQuery,
+    fromConsensusQueryAnyResult,
 
     -- * Sbe queries only
     toConsensusQuerySbe,
@@ -627,17 +627,13 @@ fromShelleyRewardAccounts =
 -- Conversions of queries into the consensus types.
 --
 
-toConsensusQueryTotal
+toConsensusAnyQuery
   :: forall mode block result.
      ConsensusBlockForMode mode ~ block
-  => QueryTotal mode result
+  => AnyQuery mode result
   -> Some (Consensus.Query block)
-toConsensusQueryTotal (QueryTotalBoth q) =
-  case q of
-     QInMode subQ -> toConsensusQuery subQ
-     QInModeSbe subQ -> toConsensusQuerySbe subQ
-toConsensusQueryTotal (QueryTotalSbe q) = toConsensusQuerySbe q
-toConsensusQueryTotal (QueryTotalAnyEra q) = toConsensusQuery q
+toConsensusAnyQuery (QInModeSbe q) = toConsensusQuerySbe q
+toConsensusAnyQuery (QInMode q) = toConsensusQuery q
 
 toConsensusQuerySbe
   :: forall mode block result.
@@ -890,17 +886,13 @@ fromConsensusQueryResultSbe (QueryInModeEraSbe' ConwayEraInCardanoMode
       _ -> fromConsensusQueryResultMismatch
 
 
-fromConsensusQueryResultTotal
+fromConsensusQueryAnyResult
   :: forall mode block result result'. ConsensusBlockForMode mode ~ block
-  => QueryTotal mode result
+  => AnyQuery mode result
   -> Consensus.Query block result'
   -> (result' -> result)
-fromConsensusQueryResultTotal (QueryTotalBoth q) =
-  case q of
-    QInMode subQ -> fromConsensusQueryResult subQ
-    QInModeSbe subQ -> fromConsensusQueryResultSbe subQ
-fromConsensusQueryResultTotal (QueryTotalSbe q) = fromConsensusQueryResultSbe q
-fromConsensusQueryResultTotal (QueryTotalAnyEra q) = fromConsensusQueryResult q
+fromConsensusQueryAnyResult (QInModeSbe q) = fromConsensusQueryResultSbe q
+fromConsensusQueryAnyResult (QInMode q) = fromConsensusQueryResult q
 
 
 fromConsensusQueryResult :: forall mode block result result'. ConsensusBlockForMode mode ~ block

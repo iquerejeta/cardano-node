@@ -776,6 +776,10 @@ module Cardano.Api (
     queryExprSimple,
     executeLocalStateQueryExprSimple,
 
+    -- Shelley only
+    executeLocalStateQueryExprSbe,
+    queryExprSbe,
+
     LocalStateQueryExpr,
     executeLocalStateQueryExpr,
     queryExpr,
@@ -838,6 +842,7 @@ import           Cardano.Api.InMode
 import           Cardano.Api.IO
 import           Cardano.Api.IPC
 import           Cardano.Api.IPC.Monad
+import           Cardano.Api.IPC.ShelleyBasedQueries
 import           Cardano.Api.IPC.SimpleFailureQueries (executeLocalStateQueryExprSimple,
                    queryExprSimple)
 import           Cardano.Api.Keys.Byron

@@ -8,9 +8,10 @@
 
 module Cardano.Api.IPC.SimpleFailureQueries
   ( LocalStateQueryExpr
+  , SimpleQueryError(..)
   , determineEraExpr
-  , executeLocalStateQueryExpr
-  , queryExpr
+  , executeLocalStateQueryExprSimple
+  , queryExprSimple
   ) where
 
 import           Control.Monad.Except
@@ -37,12 +38,12 @@ import           Cardano.Api.Query
 
 
 -- | Execute a local state query expression.
-executeLocalStateQueryExpr
+executeLocalStateQueryExprSimple
   :: LocalNodeConnectInfo mode
   -> Maybe ChainPoint
-  -> LocalStateQueryExprWithError AllEraError (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
-  -> IO (Either AllEraError a)
-executeLocalStateQueryExpr connectInfo mpoint f = do
+  -> LocalStateQueryExprWithError SimpleQueryError (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
+  -> IO (Either SimpleQueryError a)
+executeLocalStateQueryExprSimple connectInfo mpoint f = do
   tmvResultLocalState <- newEmptyTMVarIO
   let waitResult = readTMVar tmvResultLocalState
 
@@ -65,11 +66,11 @@ getNtcVersion :: LocalStateQueryExpr block point (QueryInMode mode) r IO NodeToC
 getNtcVersion = LocalStateQueryExpr ask
 
 
--- | Use 'queryExpr' in a do block to construct monadic local state queries.
-queryExpr
+-- | Use 'queryExprSimple' in a do block to construct monadic local state queries.
+queryExprSimple
   :: QueryInMode mode a
-  -> LocalStateQueryExprWithError AllEraError block point (QueryInMode mode) r IO a
-queryExpr query = do
+  -> LocalStateQueryExprWithError SimpleQueryError block point (QueryInMode mode) r IO a
+queryExprSimple query = do
   let minNtcVersion = nodeToClientVersionOf query
   ntcVersion <- lift getNtcVersion
   if ntcVersion >= minNtcVersion
@@ -85,24 +86,24 @@ queryExpr query = do
 -- | A monad expression that determines what era the node is in.
 determineEraExpr ::
      ConsensusModeParams mode
-  -> LocalStateQueryExprWithError AllEraError block point (QueryInMode mode) r IO AnyCardanoEra
+  -> LocalStateQueryExprWithError SimpleQueryError block point (QueryInMode mode) r IO AnyCardanoEra
 determineEraExpr cModeParams =
   case consensusModeOnly cModeParams of
     ByronMode -> return $ AnyCardanoEra ByronEra
     ShelleyMode -> return $ AnyCardanoEra ShelleyEra
-    CardanoMode -> queryExpr $ QueryCurrentEra CardanoModeIsMultiEra
+    CardanoMode -> queryExprSimple $ QueryCurrentEra CardanoModeIsMultiEra
 
 
--- | Use 'queryExpr' in a do block to construct monadic local state queries.
+-- | Use 'queryExprSimple' in a do block to construct monadic local state queries.
 setupLocalStateQueryExpr ::
      STM x
      -- ^ An STM expression that only returns when all protocols are complete.
      -- Protocols must wait until 'waitDone' returns because premature exit will
      -- cause other incomplete protocols to abort which may lead to deadlock.
   -> Maybe ChainPoint
-  -> TMVar (Either AllEraError a)
+  -> TMVar (Either SimpleQueryError a)
   -> NodeToClientVersion
-  -> LocalStateQueryExprWithError AllEraError (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
+  -> LocalStateQueryExprWithError SimpleQueryError (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
   -> Net.Query.LocalStateQueryClient (BlockInMode mode) ChainPoint (QueryInMode mode) IO ()
 setupLocalStateQueryExpr waitDone mPointVar' resultVar' ntcVersion f =
   LocalStateQueryClient . pure . Net.Query.SendMsgAcquire mPointVar' $

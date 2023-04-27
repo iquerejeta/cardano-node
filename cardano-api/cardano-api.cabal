@@ -78,6 +78,7 @@ library
                         Cardano.Api.IPC
                         Cardano.Api.IPC.Monad
                      --   Cardano.Api.IPC.ShelleyBasedQueries
+                        Cardano.Api.IPC.SimpleFailureQueries
                         Cardano.Api.IPC.Types
                         Cardano.Api.IPC.Version
                         Cardano.Api.Json

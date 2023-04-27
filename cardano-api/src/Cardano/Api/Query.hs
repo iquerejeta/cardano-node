@@ -38,7 +38,7 @@ module Cardano.Api.Query (
     AcquiringFailure(..),
     SBEQueryError(..),
     AllQueryErrors(..),
-    AllEraError(..),
+    SimpleQueryError(..),
 
     -- * Internal conversion functions
     toConsensusQuery,
@@ -188,10 +188,10 @@ data AnyQuery mode result where
 data SBEQueryError = QueryEraMismatch' EraMismatch
                    | EraInModeE AnyCardanoEra AnyConsensusMode
                    | ExpectedShelleyBasedEra' ()
-                   | SbeAllErr AllEraError
+                   | SbeAllErr SimpleQueryError
                    deriving Show
 
-data AllQueryErrors = AllEra AllEraError
+data AllQueryErrors = AllEra SimpleQueryError
                     | AllSbe SBEQueryError
                     deriving Show
 
@@ -199,7 +199,7 @@ data AcquiringFailure = AFPointTooOld
                       | AFPointNotOnChain
                       deriving (Eq, Show)
 
-data AllEraError = AquFail AcquiringFailure
+data SimpleQueryError = AquFail AcquiringFailure
                  | UnsuppVer UnsupportedNtcVersionError
                  deriving Show
 

@@ -99,7 +99,7 @@ queryExpr query = do
 -- | A monad expression that determines what era the node is in.
 determineEraExpr ::
      ConsensusModeParams mode
-  -> LocalStateQueryExprWithError AllEraError block point (QueryInMode mode) r IO AnyCardanoEra
+  -> LocalStateQueryExprWithError SimpleQueryError block point (QueryInMode mode) r IO AnyCardanoEra
 determineEraExpr cModeParams =
   case consensusModeOnly cModeParams of
     ByronMode -> return $ AnyCardanoEra ByronEra
@@ -139,7 +139,7 @@ executeLocalStateQueryExprQueryInMode
   :: LocalNodeConnectInfo mode
   -> Maybe ChainPoint
   -> LocalStateQueryExprWithError error (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
-  -> IO (Either AllEraError a)
+  -> IO (Either SimpleQueryError a)
 executeLocalStateQueryExprQueryInMode connectInfo mpoint f = do
   tmvResultLocalState <- newEmptyTMVarIO
   let waitResult = readTMVar tmvResultLocalState
@@ -164,9 +164,9 @@ setupLocalStateQueryExprQueryInMode ::
      -- Protocols must wait until 'waitDone' returns because premature exit will
      -- cause other incomplete protocols to abort which may lead to deadlock.
   -> Maybe ChainPoint
-  -> TMVar (Either AllEraError a)
+  -> TMVar (Either SimpleQueryError a)
   -> NodeToClientVersion
-  -> LocalStateQueryExprWithError AllEraError (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
+  -> LocalStateQueryExprWithError SimpleQueryError (BlockInMode mode) ChainPoint (QueryInMode mode) () IO a
   -> Net.Query.LocalStateQueryClient (BlockInMode mode) ChainPoint (QueryInMode mode) IO ()
 setupLocalStateQueryExprQueryInMode waitDone mPointVar' resultVar' ntcVersion f =
   LocalStateQueryClient . pure . Net.Query.SendMsgAcquire mPointVar' $
@@ -186,7 +186,7 @@ setupLocalStateQueryExprQueryInMode waitDone mPointVar' resultVar' ntcVersion f 
 
 queryExprQueryInMode
   :: QueryInMode mode a
-  -> LocalStateQueryExprWithError AllEraError block point (QueryInMode mode) r IO a
+  -> LocalStateQueryExprWithError SimpleQueryError block point (QueryInMode mode) r IO a
 queryExprQueryInMode q = do
   let minNtcVersion = nodeToClientVersionOf q
   ntcVersion <- lift getNtcVersion

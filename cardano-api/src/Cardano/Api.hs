@@ -675,6 +675,8 @@ module Cardano.Api (
     -- *** Local state query
     LocalStateQueryClient(..),
     QueryInMode(..),
+    QueryInModeEraSbe(..),
+    SBEQueryError(..),
     SystemStart(..),
     QueryInEra(..),
     QueryInShelleyBasedEra(..),
@@ -769,6 +771,11 @@ module Cardano.Api (
     NodeToClientVersion(..),
 
     -- ** Monadic queries
+    -- Simple
+    SimpleQueryError(..),
+    queryExprSimple,
+    executeLocalStateQueryExprSimple,
+
     LocalStateQueryExpr,
     executeLocalStateQueryExpr,
     queryExpr,
@@ -831,6 +838,8 @@ import           Cardano.Api.InMode
 import           Cardano.Api.IO
 import           Cardano.Api.IPC
 import           Cardano.Api.IPC.Monad
+import           Cardano.Api.IPC.SimpleFailureQueries (executeLocalStateQueryExprSimple,
+                   queryExprSimple)
 import           Cardano.Api.Keys.Byron
 import           Cardano.Api.Keys.Class
 import           Cardano.Api.Keys.Read

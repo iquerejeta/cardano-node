@@ -30,6 +30,7 @@ module Cardano.CLI.Shelley.Run.Query
 import           Cardano.Api
 import qualified Cardano.Api as Api
 import           Cardano.Api.Byron
+import           Cardano.Api.IPC.ShelleyBasedQueries
 import           Cardano.Api.Orphans ()
 import           Cardano.Api.Shelley
 
@@ -110,13 +111,14 @@ import           Data.Text.Lazy (toStrict)
 
 data ShelleyQueryCmdError
   = ShelleyQueryCmdEnvVarSocketErr !EnvSocketError
+  | ShelleyQueryCmdSimpleQueryError !SimpleQueryError
+  | ShelleyQueryCmdSbeOnlyQueryError !SBEQueryError
   | ShelleyQueryCmdLocalStateQueryError !ShelleyQueryCmdLocalStateQueryError
   | ShelleyQueryCmdWriteFileError !(FileError ())
   | ShelleyQueryCmdHelpersError !HelpersError
   | ShelleyQueryCmdAcquireFailure !AcquiringFailure
   | ShelleyQueryCmdEraConsensusModeMismatch !AnyConsensusMode !AnyCardanoEra
   | ShelleyQueryCmdByronEra
-  | ShelleyQueryCmdLocalStateFailure !SameError
   | ShelleyQueryCmdUnsupportedMode !AnyConsensusMode
   | ShelleyQueryCmdPastHorizon !Qry.PastHorizonException
   | ShelleyQueryCmdSystemStartUnavailable
@@ -135,7 +137,8 @@ data ShelleyQueryCmdError
 renderShelleyQueryCmdError :: ShelleyQueryCmdError -> Text
 renderShelleyQueryCmdError err =
   case err of
-    ShelleyQueryCmdLocalStateFailure lsqErr -> Text.pack $ show lsqErr
+    ShelleyQueryCmdSbeOnlyQueryError sbeOnlyQueryErr -> Text.pack $ show sbeOnlyQueryErr
+    ShelleyQueryCmdSimpleQueryError simpleQErr -> Text.pack $ show simpleQErr
     ShelleyQueryCmdEnvVarSocketErr envSockErr -> renderEnvSocketError envSockErr
     ShelleyQueryCmdLocalStateQueryError lsqErr -> renderLocalStateQueryError lsqErr
     ShelleyQueryCmdWriteFileError fileErr -> Text.pack (displayError fileErr)
@@ -206,14 +209,14 @@ runQueryProtocolParameters mNodeSocketPath (AnyConsensusModeParams cModeParams) 
 
   let localNodeConnInfo = LocalNodeConnectInfo cModeParams network sockPath
 
-  result
-    <- firstExceptT ShelleyQueryCmdLocalStateFailure . newExceptT
-         $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ do
-             AnyCardanoEra era <- determineEraExpr cModeParams
-             queryExprE cModeParams era QueryProtocolParameters
+  --result
+  --  <- firstExceptT ShelleyQueryCmdLocalStateFailure . newExceptT
+  --       $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ do
+  --           AnyCardanoEra era <- determineEraExpr cModeParams
+  --           queryExprE cModeParams era QueryProtocolParameters
 
 
-  writeProtocolParameters mOutFile result
+  writeProtocolParameters mOutFile undefined -- result
 
  where
   writeProtocolParameters
@@ -276,12 +279,12 @@ runQueryTip mNodeSocketPath (AnyConsensusModeParams cModeParams) network mOutFil
       let localNodeConnInfo = LocalNodeConnectInfo cModeParams network sockPath
 
       eLocalState <-
-        liftIO $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ do
-          era <- queryExpr (QueryCurrentEra CardanoModeIsMultiEra)
-          eraHistory <- queryExpr (QueryEraHistory CardanoModeIsMultiEra)
-          mChainBlockNo <- queryExpr QueryChainBlockNo
-          mChainPoint <- queryExpr (QueryChainPoint CardanoMode)
-          mSystemStart <- queryExpr QuerySystemStart
+        liftIO $ executeLocalStateQueryExprSimple localNodeConnInfo Nothing $ do
+          era <- queryExprSimple (QueryCurrentEra CardanoModeIsMultiEra)
+          eraHistory <- queryExprSimple (QueryEraHistory CardanoModeIsMultiEra)
+          mChainBlockNo <- queryExprSimple QueryChainBlockNo
+          mChainPoint <- queryExprSimple (QueryChainPoint CardanoMode)
+          mSystemStart <- queryExprSimple QuerySystemStart
 
           return O.QueryTipLocalState
             { O.era = era
@@ -373,10 +376,11 @@ runQueryUTxO mNodeSocketPath (AnyConsensusModeParams cModeParams)
   eInMode <- pure (toEraInMode era cMode)
     & onNothing (left (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE))
 
-  let query   = QueryInShelleyBasedEra sbe (QueryUTxO qfilter)
-      qInMode = QueryInEra eInMode query
+  let query = QueryInModeEraSbe' eInMode $ QueryInShelleyBasedEra sbe (QueryUTxO qfilter)
+      sbeQuery = queryExprSbe  query
 
-  result <- executeQuery era cModeParams localNodeConnInfo qInMode
+  result <- firstExceptT ShelleyQueryCmdSbeOnlyQueryError
+          $ newExceptT $ executeLocalStateQueryExprSbe localNodeConnInfo Nothing sbeQuery
 
   writeFilteredUTxOs sbe mOutFile result
 
@@ -408,7 +412,7 @@ runQueryKesPeriodInfo mNodeSocketPath (AnyConsensusModeParams cModeParams) netwo
 
       -- We check that the KES period specified in the operational certificate is correct
       -- based on the KES period defined in the genesis parameters and the current slot number
-      let genesisQinMode = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryGenesisParameters
+      let genesisQinMode = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryGenesisParameters
           eraHistoryQuery = QueryEraHistory CardanoModeIsMultiEra
       gParams <- executeQuery era cModeParams localNodeConnInfo genesisQinMode
 
@@ -428,10 +432,10 @@ runQueryKesPeriodInfo mNodeSocketPath (AnyConsensusModeParams cModeParams) netwo
       -- We get the operational certificate counter from the protocol state and check that
       -- it is equivalent to what we have on disk.
 
-      let ptclStateQinMode = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryProtocolState
+      let ptclStateQinMode = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryProtocolState
       ptclState <- executeQuery era cModeParams localNodeConnInfo ptclStateQinMode
 
-      (onDiskC, stateC) <- eligibleLeaderSlotsConstaints sbe $ opCertOnDiskAndStateCounters ptclState opCert
+      (onDiskC, stateC) <- undefined -- eligibleLeaderSlotsConstaints sbe $ opCertOnDiskAndStateCounters ptclState opCert
       let counterInformation = opCertNodeAndOnDiskCounters onDiskC stateC
 
       -- Always render diagnostic information
@@ -670,9 +674,9 @@ runQueryPoolState mNodeSocketPath (AnyConsensusModeParams cModeParams) network p
   eInMode <- toEraInMode era cMode
     & hoistMaybe (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE)
 
-  let qInMode = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryPoolState $ Just $ Set.fromList poolIds
+  let qInMode = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryPoolState $ Just $ Set.fromList poolIds
   result <- executeQuery era cModeParams localNodeConnInfo qInMode
-  obtainLedgerEraClassConstraints sbe writePoolState result
+  undefined -- obtainLedgerEraClassConstraints sbe writePoolState result
 
 -- | Query the local mempool state
 runQueryTxMempool
@@ -732,12 +736,12 @@ runQueryStakeSnapshot mNodeSocketPath (AnyConsensusModeParams cModeParams) netwo
   eInMode <- toEraInMode era cMode
     & hoistMaybe (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE)
 
-  let qInMode = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryStakeSnapshot $ case allOrOnlyPoolIds of
-        All -> Nothing
-        Only poolIds -> Just $ Set.fromList poolIds
+  let qInMode = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryStakeSnapshot $ case allOrOnlyPoolIds of
+       -- All -> Nothing
+       -- Only poolIds -> Just $ Set.fromList poolIds
 
   result <- executeQuery era cModeParams localNodeConnInfo qInMode
-  obtainLedgerEraClassConstraints sbe (writeStakeSnapshots mOutFile) result
+  undefined -- obtainLedgerEraClassConstraints sbe (writeStakeSnapshots mOutFile) result
 
 
 runQueryLedgerState
@@ -761,11 +765,11 @@ runQueryLedgerState mNodeSocketPath (AnyConsensusModeParams cModeParams) network
   eInMode <- pure (toEraInMode era cMode)
     & onNothing (left (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE))
 
-  let qInMode = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryDebugLedgerState
+  let qInMode = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryDebugLedgerState
 
   result <- executeQuery era cModeParams localNodeConnInfo qInMode
 
-  obtainLedgerEraClassConstraints sbe (writeLedgerState mOutFile) result
+  undefined -- obtainLedgerEraClassConstraints sbe (writeLedgerState mOutFile) result
 
 runQueryProtocolState
   :: Maybe SocketPath
@@ -788,14 +792,14 @@ runQueryProtocolState mNodeSocketPath (AnyConsensusModeParams cModeParams) netwo
   eInMode <- pure (toEraInMode era cMode)
     & onNothing (left (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE))
 
-  let qInMode = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryProtocolState
+  let qInMode = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryProtocolState
 
   result <- executeQuery era cModeParams localNodeConnInfo qInMode
 
-  case cMode of
-    CardanoMode -> eligibleWriteProtocolStateConstaints sbe $ writeProtocolState mOutFile result
-    mode -> left . ShelleyQueryCmdUnsupportedMode $ AnyConsensusMode mode
-
+  --case cMode of
+  --  CardanoMode -> eligibleWriteProtocolStateConstaints sbe $ writeProtocolState mOutFile result
+  --  mode -> left . ShelleyQueryCmdUnsupportedMode $ AnyConsensusMode mode
+  undefined
 -- | Query the current delegations and reward accounts, filtered by a given
 -- set of addresses, from a Shelley node via the local state query protocol.
 
@@ -822,7 +826,7 @@ runQueryStakeAddressInfo mNodeSocketPath (AnyConsensusModeParams cModeParams) (S
     & onNothing (left (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE))
 
   let stakeAddr = Set.singleton $ fromShelleyStakeCredential addr
-      query = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryStakeAddresses stakeAddr network
+      query = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryStakeAddresses stakeAddr network
 
   result <- executeQuery era cModeParams localNodeConnInfo query
 
@@ -1050,18 +1054,18 @@ runQueryStakePools mNodeSocketPath (AnyConsensusModeParams cModeParams) network 
 
   let localNodeConnInfo = LocalNodeConnectInfo cModeParams network sockPath
 
-  execState <- liftIO $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ do
-                   AnyCardanoEra era <- determineEraExpr cModeParams
-                   queryExprE cModeParams era QueryStakePools
-  case execState of
-    Left (SameError (AquFail f)) -> left $ ShelleyQueryCmdAcquireFailure f
-    Left (SameError (UnsuppVer f)) -> left $ ShelleyQueryCmdUnsupportedNtcVersion f
-    Left (SameError (ShelleyBasedEraQueryError _)) -> undefined
-  --  Left (SameError (OtherError (QueryEraMismatch' m)) ) -> undefined
-    Right poolIds -> do
+  --_execState <- liftIO $ executeLocalStateQueryExpr localNodeConnInfo Nothing $ do
+  --                 AnyCardanoEra era <- determineEraExpr cModeParams
+  --                 queryExprE cModeParams era QueryStakePools
+  --case execState of
+  --  Left (SameError (AquFail f)) -> left $ ShelleyQueryCmdAcquireFailure f
+  --  Left (SameError (UnsuppVer f)) -> left $ ShelleyQueryCmdUnsupportedNtcVersion f
+  --  Left (SameError (ShelleyBasedEraQueryError _)) -> undefined
+  ----  Left (SameError (OtherError (QueryEraMismatch' m)) ) -> undefined
+  --  Right poolIds -> do
 
      -- poolIds <- firstExceptT ShelleyQueryCmdLocalStateFailure $ newExceptT execState
-      writeStakePools mOutFile poolIds
+  undefined -- writeStakePools mOutFile poolIds
 
 writeStakePools
   :: Maybe (File () Out)
@@ -1096,7 +1100,7 @@ runQueryStakeDistribution mNodeSocketPath (AnyConsensusModeParams cModeParams) n
   eInMode <- pure (toEraInMode era cMode)
     & onNothing (left (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE))
 
-  let query = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryStakeDistribution
+  let query = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryStakeDistribution
 
   result <- executeQuery era cModeParams localNodeConnInfo query
 
@@ -1233,8 +1237,8 @@ runQueryLeadershipSchedule
       eInMode <- toEraInMode era cMode
           & hoistMaybe (ShelleyQueryCmdEraConsensusModeMismatch (AnyConsensusMode cMode) anyE)
 
-      let pparamsQuery = QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryProtocolParameters
-          ptclStateQuery = QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryProtocolState
+      let pparamsQuery = undefined -- QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryProtocolParameters
+          ptclStateQuery = undefined -- QueryInEra eInMode . QueryInShelleyBasedEra sbe $ QueryProtocolState
           eraHistoryQuery = QueryEraHistory CardanoModeIsMultiEra
 
       pparams <- executeQuery era cModeParams localNodeConnInfo pparamsQuery
@@ -1243,7 +1247,7 @@ runQueryLeadershipSchedule
         & onLeft (left . ShelleyQueryCmdAcquireFailure)
 
       let eInfo = toEpochInfo eraHistory
-      let currentEpochQuery = QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryEpoch
+      let currentEpochQuery = undefined -- QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryEpoch
       curentEpoch <- executeQuery era cModeParams localNodeConnInfo currentEpochQuery
 
       let bpp = bundleProtocolParams era pparams
@@ -1251,7 +1255,7 @@ runQueryLeadershipSchedule
       schedule <- case whichSchedule of
         CurrentEpoch -> do
           serCurrentEpochState <- executeQuery era cModeParams localNodeConnInfo $
-            QueryInEra eInMode $ QueryInShelleyBasedEra sbe (QueryPoolDistribution (Just (Set.singleton poolid)))
+            undefined -- QueryInEra eInMode $ QueryInShelleyBasedEra sbe (QueryPoolDistribution (Just (Set.singleton poolid)))
           firstExceptT ShelleyQueryCmdLeaderShipError $ hoistEither
             $ eligibleLeaderSlotsConstaints sbe
             $ currentEpochEligibleLeadershipSlots
@@ -1259,23 +1263,23 @@ runQueryLeadershipSchedule
               shelleyGenesis
               eInfo
               bpp
-              ptclState
+              undefined -- ptclState
               poolid
               vrkSkey
-              serCurrentEpochState
-              curentEpoch
+              undefined -- serCurrentEpochState
+              undefined -- curentEpoch
 
         NextEpoch -> do
-          let currentEpochStateQuery = QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryCurrentEpochState
+          let currentEpochStateQuery = undefined -- QueryInEra eInMode $ QueryInShelleyBasedEra sbe QueryCurrentEpochState
 
           tip <- liftIO $ getLocalChainTip localNodeConnInfo
           serCurrentEpochState <- executeQuery era cModeParams localNodeConnInfo currentEpochStateQuery
-
-          firstExceptT ShelleyQueryCmdLeaderShipError $ hoistEither
-            $ eligibleLeaderSlotsConstaints sbe
-            $ nextEpochEligibleLeadershipSlots sbe shelleyGenesis
-              serCurrentEpochState ptclState poolid vrkSkey bpp
-              eInfo (tip, curentEpoch)
+          undefined
+          --firstExceptT ShelleyQueryCmdLeaderShipError $ hoistEither
+          --  $ eligibleLeaderSlotsConstaints sbe
+          --  $ nextEpochEligibleLeadershipSlots sbe shelleyGenesis
+          --    serCurrentEpochState ptclState poolid vrkSkey bpp
+          --    eInfo (tip, curentEpoch)
 
       case mJsonOutputFile of
         Nothing -> liftIO $ printLeadershipScheduleAsText schedule eInfo (SystemStart $ sgSystemStart shelleyGenesis)

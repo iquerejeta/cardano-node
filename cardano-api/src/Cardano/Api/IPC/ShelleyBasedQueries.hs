@@ -12,8 +12,8 @@ module Cardano.Api.IPC.ShelleyBasedQueries
   ( LocalStateQueryExpr
   , determineEraInMode
   , determineShelleyBasedEra
-  , executeLocalStateQueryExpr
-  , queryExpr
+  , executeLocalStateQueryExprSbe
+  , queryExprSbe
   ) where
 
 import           Control.Concurrent.STM
@@ -77,6 +77,9 @@ instance Instantiate (QueryInModeEraSbe mode result) where
   type InstantiateError (QueryInModeEraSbe mode result) = SBEQueryError
   type ReduceQuery (QueryInModeEraSbe mode result) = QueryInModeEraSbe mode
   type QuerySpecificLocalNodeClientProtocols (QueryInModeEraSbe mode result) = LocalNodeClientProtocolsInModeSbe mode
+
+-- TODO: Have a class method for queryExprSbe!! First makes sure your sbe query stuff works
+
 --- Types and functions for connectToLocalNodeWithVersion
 
 type LocalNodeClientProtocolsInModeSbe mode =
@@ -171,12 +174,12 @@ convLocalStateQueryClientSbe mode =
       fromConsensusQueryResultSbe
 
 -- | Execute a local state query expression.
-executeLocalStateQueryExpr
+executeLocalStateQueryExprSbe
   :: LocalNodeConnectInfo mode
   -> Maybe ChainPoint
   -> LocalStateQueryExprWithError SBEQueryError (BlockInMode mode) ChainPoint (QueryInModeEraSbe mode) () IO a
   -> IO (Either SBEQueryError a)
-executeLocalStateQueryExpr connectInfo mpoint f = do
+executeLocalStateQueryExprSbe connectInfo mpoint f = do
   tmvResultLocalState <- newEmptyTMVarIO
   let waitResult = readTMVar tmvResultLocalState
 
@@ -349,7 +352,7 @@ determineEraInMode era cModeParams = do
 
 
 
--- | Use 'queryExpr' in a do block to construct monadic local state queries.
+-- | Use 'queryExprSbe' in a do block to construct monadic local state queries.
 setupLocalStateQueryExpr ::
      STM x
      -- ^ An STM expression that only returns when all protocols are complete.
@@ -383,11 +386,11 @@ setupLocalStateQueryExpr waitDone mPointVar' resultVar' ntcVersion f =
 -- | Handles queries that return `Either EraMismatch a`
 -- Not sure which is correct
 
--- | Use 'queryExpr' in a do block to construct monadic local state queries.
-queryExpr
+-- | Use 'queryExprSbe' in a do block to construct monadic local state queries.
+queryExprSbe
   :: QueryInModeEraSbe mode (Either EraMismatch a)
   -> LocalStateQueryExprWithError SBEQueryError block point (QueryInModeEraSbe mode) r IO a
-queryExpr query = do
+queryExprSbe query = do
   let minNtcVersion = nodeToClientVersionOf query
   ntcVersion <- lift getNtcVersion
   if ntcVersion >= minNtcVersion

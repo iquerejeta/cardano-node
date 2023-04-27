@@ -1,0 +1,106 @@
+2023-04-27 13:53:28.5060000 [client] INFO Writing client log to file /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api/hls.log
+2023-04-27 13:53:28.5080000 [client] INFO Finding haskell-language-server
+2023-04-27 13:53:28.5090000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.5090000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.5170000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose upgrade' in cwd '/home/jordan'
+2023-04-27 13:53:28.6020000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.6020000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.6080000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t hls -c installed -r' in cwd '/home/jordan'
+2023-04-27 13:53:28.6680000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.6680000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.6750000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t cabal -c installed -r' in cwd '/home/jordan'
+2023-04-27 13:53:28.7520000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.7520000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.7590000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t stack -c installed -r' in cwd '/home/jordan'
+2023-04-27 13:53:28.8340000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.8340000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.8420000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis hls 1.10.0.0' in cwd '/home/jordan'
+2023-04-27 13:53:28.8590000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.8590000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.8660000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis cabal 3.10.1.0' in cwd '/home/jordan'
+2023-04-27 13:53:28.8820000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.8820000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.8880000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis stack 2.9.1' in cwd '/home/jordan'
+2023-04-27 13:53:28.9110000 [client] INFO Executing 'ghc --numeric-version' in cwd '/home/jordan'
+2023-04-27 13:53:28.9510000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:28.9510000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:28.9590000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose run --hls 1.10.0.0 --cabal 3.10.1.0 --stack 2.9.1 --install' in cwd '/home/jordan'
+2023-04-27 13:53:29.0160000 [client] INFO Working out the project GHC version. This might take a while...
+2023-04-27 13:53:29.0170000 [client] INFO Executing 'haskell-language-server-wrapper --project-ghc-version' in cwd '/home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api'
+2023-04-27 13:53:37.8030000 [client] INFO The GHC version for the project or file: 9.2.7
+2023-04-27 13:53:38.0410000 [client] INFO Platform constants: Linux_UnknownLinux, A_64
+2023-04-27 13:53:38.0410000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:38.0420000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:38.0500000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t hls -c installed -r' in cwd '/home/jordan'
+2023-04-27 13:53:38.0970000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:38.0970000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:38.1020000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis bindir' in cwd '/home/jordan'
+2023-04-27 13:53:38.1200000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:38.1200000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:38.1270000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis hls 1.10.0.0' in cwd '/home/jordan'
+2023-04-27 13:53:38.1430000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:38.1430000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:38.1490000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis ghc 9.2.7' in cwd '/home/jordan'
+2023-04-27 13:53:38.1640000 [client] INFO Checking for ghcup installation
+2023-04-27 13:53:38.1640000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 13:53:38.1700000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose run --hls 1.10.0.0 --cabal 3.10.1.0 --stack 2.9.1 --ghc 9.2.7 --install' in cwd '/home/jordan'
+2023-04-27 13:53:38.2150000 [client] INFO Activating the language server in working dir: /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api (parent dir of loaded file /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api/Query.hs)
+2023-04-27 13:53:38.2160000 [client] INFO run command: /home/jordan/.ghcup/tmp/ghcup-ghc-9.2.7_cabal-3.10.1.0_hls-1.10.0.0_stack-2.9.1/haskell-language-server-wrapper --lsp -l hls.log
+2023-04-27 13:53:38.2160000 [client] INFO debug command: /home/jordan/.ghcup/tmp/ghcup-ghc-9.2.7_cabal-3.10.1.0_hls-1.10.0.0_stack-2.9.1/haskell-language-server-wrapper --lsp -l hls.log
+2023-04-27 13:53:38.2160000 [client] INFO server cwd: /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api
+2023-04-27 13:53:38.2160000 [client] INFO server environment variables:
+2023-04-27 13:53:38.2160000 [client] INFO   PATH=/home/jordan/.ghcup/tmp/ghcup-ghc-9.2.7_cabal-3.10.1.0_hls-1.10.0.0_stack-2.9.1:/home/jordan/.cabal/bin:/home/jordan/.ghcup/bin:/home/jordan/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin
+2023-04-27 13:53:38.2190000 [client] INFO Starting language server
+2023-04-27 15:12:54.5070000 [client] INFO Writing client log to file /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api/hls.log
+2023-04-27 15:12:54.5070000 [client] INFO Finding haskell-language-server
+2023-04-27 15:12:54.5090000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.5090000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.5160000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose upgrade' in cwd '/home/jordan'
+2023-04-27 15:12:54.6030000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.6030000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.6110000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t hls -c installed -r' in cwd '/home/jordan'
+2023-04-27 15:12:54.7000000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.7000000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.7090000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t cabal -c installed -r' in cwd '/home/jordan'
+2023-04-27 15:12:54.7990000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.7990000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.8070000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t stack -c installed -r' in cwd '/home/jordan'
+2023-04-27 15:12:54.8840000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.8850000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.8910000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis hls 1.10.0.0' in cwd '/home/jordan'
+2023-04-27 15:12:54.9090000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.9090000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.9180000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis cabal 3.10.1.0' in cwd '/home/jordan'
+2023-04-27 15:12:54.9350000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:54.9350000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:54.9410000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis stack 2.9.1' in cwd '/home/jordan'
+2023-04-27 15:12:54.9640000 [client] INFO Executing 'ghc --numeric-version' in cwd '/home/jordan'
+2023-04-27 15:12:55.0010000 [client] INFO Checking for ghcup installation
+2023-04-27 15:12:55.0010000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:12:55.0070000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose run --hls 1.10.0.0 --cabal 3.10.1.0 --stack 2.9.1 --install' in cwd '/home/jordan'
+2023-04-27 15:12:55.0730000 [client] INFO Working out the project GHC version. This might take a while...
+2023-04-27 15:12:55.0740000 [client] INFO Executing 'haskell-language-server-wrapper --project-ghc-version' in cwd '/home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api'
+2023-04-27 15:13:04.8010000 [client] INFO The GHC version for the project or file: 9.2.7
+2023-04-27 15:13:05.0040000 [client] INFO Platform constants: Linux_UnknownLinux, A_64
+2023-04-27 15:13:05.0050000 [client] INFO Checking for ghcup installation
+2023-04-27 15:13:05.0050000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:13:05.0120000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose list -t hls -c installed -r' in cwd '/home/jordan'
+2023-04-27 15:13:05.0580000 [client] INFO Checking for ghcup installation
+2023-04-27 15:13:05.0580000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:13:05.0630000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis bindir' in cwd '/home/jordan'
+2023-04-27 15:13:05.0790000 [client] INFO Checking for ghcup installation
+2023-04-27 15:13:05.0790000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:13:05.0860000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis hls 1.10.0.0' in cwd '/home/jordan'
+2023-04-27 15:13:05.1020000 [client] INFO Checking for ghcup installation
+2023-04-27 15:13:05.1020000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:13:05.1100000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose whereis ghc 9.2.7' in cwd '/home/jordan'
+2023-04-27 15:13:05.1260000 [client] INFO Checking for ghcup installation
+2023-04-27 15:13:05.1270000 [client] INFO Trying to find the ghcup executable in: /home/jordan/.ghcup/bin/ghcup
+2023-04-27 15:13:05.1340000 [client] INFO Executing '/home/jordan/.ghcup/bin/ghcup --no-verbose run --hls 1.10.0.0 --cabal 3.10.1.0 --stack 2.9.1 --ghc 9.2.7 --install' in cwd '/home/jordan'
+2023-04-27 15:13:05.1800000 [client] INFO Activating the language server in working dir: /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api (parent dir of loaded file /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api/IPC.hs)
+2023-04-27 15:13:05.1800000 [client] INFO run command: /home/jordan/.ghcup/tmp/ghcup-ghc-9.2.7_cabal-3.10.1.0_hls-1.10.0.0_stack-2.9.1/haskell-language-server-wrapper --lsp -l hls.log
+2023-04-27 15:13:05.1800000 [client] INFO debug command: /home/jordan/.ghcup/tmp/ghcup-ghc-9.2.7_cabal-3.10.1.0_hls-1.10.0.0_stack-2.9.1/haskell-language-server-wrapper --lsp -l hls.log
+2023-04-27 15:13:05.1800000 [client] INFO server cwd: /home/jordan/Repos/Work/cardano-haskell/cardano-node/cardano-api/src/Cardano/Api
+2023-04-27 15:13:05.1800000 [client] INFO server environment variables:
+2023-04-27 15:13:05.1810000 [client] INFO   PATH=/home/jordan/.ghcup/tmp/ghcup-ghc-9.2.7_cabal-3.10.1.0_hls-1.10.0.0_stack-2.9.1:/home/jordan/.cabal/bin:/home/jordan/.ghcup/bin:/home/jordan/.nix-profile/bin:/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin
+2023-04-27 15:13:05.1810000 [client] INFO Starting language server

@@ -19,13 +19,22 @@ module Cardano.Api.IPC (
     -- | Operations that involve talking to a local Cardano node.
     connectToLocalNode,
     connectToLocalNodeWithVersion,
+    connectToLocalNodeWithVersionGeneralized,
     LocalNodeConnectInfo(..),
     localConsensusMode,
-    LocalNodeClientParams(..),
     mkLocalNodeClientParams,
     LocalNodeClientProtocols(..),
     LocalChainSyncClient(..),
     LocalNodeClientProtocolsInMode,
+    LocalNodeClientProtocolsInModeGeneralized,
+
+    -- Needed for all the queries regardless of query type
+    LocalNodeClientProtocolsForBlock(..),
+    LocalNodeClientParams(..),
+    convLocalChainSyncClientPipelined,
+    convLocalChainSyncClient,
+    convLocalTxSubmissionClient,
+    convLocalTxMonitoringClient,
 
     -- ** Modes
     -- | TODO move to Cardano.Api
@@ -181,6 +190,18 @@ type LocalNodeClientProtocolsInMode mode =
          (QueryInMode mode)
          IO
 
+type LocalNodeClientProtocolsInModeGeneralized mode =
+       LocalNodeClientProtocols
+         (BlockInMode mode)
+         ChainPoint
+         ChainTip
+         SlotNo
+         (TxInMode mode)
+         (TxIdInMode mode)
+         (TxValidationErrorInMode mode)
+         (QueryTotal mode)
+         IO
+
 data LocalNodeConnectInfo mode =
      LocalNodeConnectInfo {
        localConsensusModeParams :: ConsensusModeParams mode,
@@ -216,6 +237,34 @@ connectToLocalNode localNodeConnectInfo handlers
 -- protocol handlers parameterized on the negotiated node-to-client protocol
 -- version.
 --
+connectToLocalNodeWithVersionGeneralized :: LocalNodeConnectInfo mode
+                              -> (NodeToClientVersion -> LocalNodeClientProtocolsInModeGeneralized mode)
+                              -> IO ()
+connectToLocalNodeWithVersionGeneralized LocalNodeConnectInfo {
+                     localNodeSocketPath,
+                     localNodeNetworkId,
+                     localConsensusModeParams
+                   } clients =
+    Net.withIOManager $ \iomgr ->
+      Net.connectTo
+        (Net.localSnocket iomgr)
+        Net.NetworkConnectTracers {
+          Net.nctMuxTracer       = nullTracer,
+          Net.nctHandshakeTracer = nullTracer
+        }
+        versionedProtocls
+        localNodeSocketPath
+  where
+    versionedProtocls =
+      -- First convert from the mode-parametrised view of things to the
+      -- block-parametrised view and then do the final setup for the versioned
+      -- bundles of mini-protocols.
+      case mkLocalNodeClientParamsGeneralized localConsensusModeParams clients of
+        LocalNodeClientParamsSingleBlock ptcl clients' ->
+          mkVersionedProtocols localNodeNetworkId ptcl clients'
+        LocalNodeClientParamsCardano ptcl clients' ->
+          mkVersionedProtocols localNodeNetworkId ptcl clients'
+
 connectToLocalNodeWithVersion :: LocalNodeConnectInfo mode
                               -> (NodeToClientVersion -> LocalNodeClientProtocolsInMode mode)
                               -> IO ()
@@ -400,6 +449,39 @@ data LocalNodeClientProtocolsForBlock block =
 
 -- | Convert from the mode-parametrised style to the block-parametrised style.
 --
+mkLocalNodeClientParamsGeneralized :: forall mode block.
+                           ConsensusBlockForMode mode ~ block
+                        => ConsensusModeParams mode
+                        -> (NodeToClientVersion -> LocalNodeClientProtocolsInModeGeneralized mode)
+                        -> LocalNodeClientParams
+mkLocalNodeClientParamsGeneralized modeparams clients =
+    -- For each of the possible consensus modes we pick the concrete block type
+    -- (by picking the appropriate 'ProtocolClient' value).
+    --
+    -- Though it is not immediately visible, this point where we use
+    -- 'LocalNodeClientParams' is also where we pick up the necessary class
+    -- instances. This works because in each case we have a monomorphic block
+    -- type and the instances are all in scope. This is why the use of
+    -- LocalNodeClientParams is repeated within each branch of the case:
+    -- because it is only within each branch that the GADT match makes the
+    -- block type monomorphic.
+    --
+    case modeparams of
+      ByronModeParams epochSlots ->
+        LocalNodeClientParamsSingleBlock
+          (ProtocolClientInfoArgsByron epochSlots)
+          (convLocalNodeClientProtocolsGeneralized ByronMode . clients)
+
+      ShelleyModeParams ->
+        LocalNodeClientParamsSingleBlock
+          ProtocolClientInfoArgsShelley
+          (convLocalNodeClientProtocolsGeneralized ShelleyMode . clients)
+
+      CardanoModeParams epochSlots ->
+       LocalNodeClientParamsCardano
+         (ProtocolClientInfoArgsCardano epochSlots)
+         (convLocalNodeClientProtocolsGeneralized CardanoMode . clients)
+
 mkLocalNodeClientParams :: forall mode block.
                            ConsensusBlockForMode mode ~ block
                         => ConsensusModeParams mode
@@ -432,6 +514,36 @@ mkLocalNodeClientParams modeparams clients =
        LocalNodeClientParamsCardano
          (ProtocolClientInfoArgsCardano epochSlots)
          (convLocalNodeClientProtocols CardanoMode . clients)
+
+convLocalNodeClientProtocolsGeneralized :: forall mode block.
+                                ConsensusBlockForMode mode ~ block
+                             => ConsensusMode mode
+                             -> LocalNodeClientProtocolsInModeGeneralized mode
+                             -> LocalNodeClientProtocolsForBlock block
+convLocalNodeClientProtocolsGeneralized
+    mode
+    LocalNodeClientProtocols {
+      localChainSyncClient,
+      localTxSubmissionClient,
+      localStateQueryClient,
+      localTxMonitoringClient
+    } =
+    LocalNodeClientProtocolsForBlock {
+      localChainSyncClientForBlock    = case localChainSyncClient of
+        NoLocalChainSyncClient -> NoLocalChainSyncClient
+        LocalChainSyncClientPipelined clientPipelined -> LocalChainSyncClientPipelined $ convLocalChainSyncClientPipelined mode clientPipelined
+        LocalChainSyncClient client -> LocalChainSyncClient $ convLocalChainSyncClient mode client,
+
+      localTxSubmissionClientForBlock = convLocalTxSubmissionClient mode <$>
+                                          localTxSubmissionClient,
+
+      localStateQueryClientForBlock   = convLocalStateQueryClientGeneralized mode <$>
+                                          localStateQueryClient,
+
+      localTxMonitoringClientForBlock = convLocalTxMonitoringClient mode <$>
+                                          localTxMonitoringClient
+
+    }
 
 
 convLocalNodeClientProtocols :: forall mode block.
@@ -514,6 +626,19 @@ convLocalTxSubmissionClient mode =
       (fromConsensusApplyTxErr mode)
 
 
+convLocalStateQueryClientGeneralized
+  :: forall mode block m a.
+     (ConsensusBlockForMode mode ~ block, Functor m)
+  => ConsensusMode mode
+  -> LocalStateQueryClient (BlockInMode mode) ChainPoint (QueryTotal mode) m a
+  -> LocalStateQueryClient block (Consensus.Point block)
+                           (Consensus.Query block) m a
+convLocalStateQueryClientGeneralized mode =
+    Net.Query.mapLocalStateQueryClient
+      (toConsensusPointInMode mode)
+      toConsensusQueryTotal
+      fromConsensusQueryResultTotal
+
 convLocalStateQueryClient
   :: forall mode block m a.
      (ConsensusBlockForMode mode ~ block, Functor m)
@@ -571,10 +696,6 @@ mapLocalTxMonitoringClient convTxid convTx ltxmc =
 -- | Establish a connection to a node and execute a single query using the
 -- local state query protocol.
 --
-
-data AcquiringFailure = AFPointTooOld
-                      | AFPointNotOnChain
-                      deriving (Eq, Show)
 
 toAcquiringFailure :: Net.Query.AcquireFailure -> AcquiringFailure
 toAcquiringFailure AcquireFailurePointTooOld = AFPointTooOld

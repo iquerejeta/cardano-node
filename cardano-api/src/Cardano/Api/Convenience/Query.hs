@@ -77,17 +77,17 @@ queryStateForBalancedTx era networkId allTxIns = runExceptT $ do
 
   qSbe <- except $ getSbe $ cardanoEraStyle era
 
-  qeInMode <- toEraInMode era CardanoMode
+  _qeInMode <- toEraInMode era CardanoMode
     & hoistMaybe (EraConsensusModeMismatch (AnyConsensusMode CardanoMode) (getIsCardanoEraConstraint era $ AnyCardanoEra era))
 
   -- Queries
-  let utxoQuery = QueryInEra qeInMode $ QueryInShelleyBasedEra qSbe
+  let utxoQuery = undefined --- QueryInEra qeInMode $ QueryInShelleyBasedEra qSbe
                     $ QueryUTxO (QueryUTxOByTxIn (Set.fromList allTxIns))
-      pparamsQuery = QueryInEra qeInMode
+      pparamsQuery = undefined --- QueryInEra qeInMode
                         $ QueryInShelleyBasedEra qSbe QueryProtocolParameters
-      eraHistoryQuery = QueryEraHistory CardanoModeIsMultiEra
-      systemStartQuery = QuerySystemStart
-      stakePoolsQuery = QueryInEra qeInMode . QueryInShelleyBasedEra qSbe $ QueryStakePools
+      eraHistoryQuery = undefined --- QueryEraHistory CardanoModeIsMultiEra
+      systemStartQuery = undefined --- QuerySystemStart
+      stakePoolsQuery = undefined --- QueryInEra qeInMode . QueryInShelleyBasedEra qSbe $ QueryStakePools
 
   -- Query execution
   utxo <- ExceptT $ executeQueryCardanoMode era networkId utxoQuery

@@ -47,6 +47,8 @@ library
                         Cardano.Api.ChainSync.ClientPipelined
                         Cardano.Api.Crypto.Ed25519Bip32
                         Cardano.Api.Shelley
+                        -- Do not expose when merging PR
+                        Cardano.Api.IPC.ShelleyBasedQueries
                         -- TODO: Eliminate in the future when
                         -- we create wrapper types for the ledger types
                         -- in this module
@@ -75,6 +77,8 @@ library
                         Cardano.Api.IO
                         Cardano.Api.IPC
                         Cardano.Api.IPC.Monad
+                     --   Cardano.Api.IPC.ShelleyBasedQueries
+                        Cardano.Api.IPC.Types
                         Cardano.Api.IPC.Version
                         Cardano.Api.Json
                         Cardano.Api.Keys.Byron

@@ -10,11 +10,13 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 -- The Shelley ledger uses promoted data kinds which we have to use, but we do
 -- not export any from this API. We also use them unticked as nature intended.
 {-# OPTIONS_GHC -Wno-unticked-promoted-constructors #-}
+{-# LANGUAGE InstanceSigs #-}
 
 
 -- | Queries from local clients to the node.
@@ -22,16 +24,31 @@
 module Cardano.Api.Query (
 
     -- * Queries
+    QueryTotal(..),
+    AnyQuery(..),
     QueryInMode(..),
+    QueryInModeEraSbe(..),
     QueryInEra(..),
     QueryInShelleyBasedEra(..),
     QueryUTxOFilter(..),
     UTxO(..),
     UTxOInAnyEra(..),
 
+    -- * Query errors
+    AcquiringFailure(..),
+    SBEQueryError(..),
+    AllQueryErrors(..),
+    AllEraError(..),
+
     -- * Internal conversion functions
     toConsensusQuery,
     fromConsensusQueryResult,
+    toConsensusQueryTotal,
+    fromConsensusQueryResultTotal,
+
+    -- * Sbe queries only
+    toConsensusQuerySbe,
+    fromConsensusQueryResultSbe,
 
     -- * Wrapper types used in queries
     SerialisedDebugLedgerState(..),
@@ -150,15 +167,51 @@ import qualified Data.Aeson.KeyMap as KeyMap
 -- Queries
 --
 
+-- We make this separation because the errors that are propagated depend on the
+-- kind of query you are using. We are only interested in handling errors that
+-- can actually be thrown from our queries therefore we separate the queries
+-- based on the errors they can throw. TODO: Link to the errors here.
+data QueryTotal mode result where
+  -- This is the case where by we are using a mixture of the shelley based era
+  -- queries and the any cardano era queries
+  QueryTotalBoth :: AnyQuery mode result -> QueryTotal mode result
+  -- This is the case where we are using only the shelley based era queries
+  QueryTotalSbe :: QueryInModeEraSbe mode result -> QueryTotal mode result
+  -- This is the case where we are using only the any cardano era queries
+  QueryTotalAnyEra :: QueryInMode mode result -> QueryTotal mode result
+
+data AnyQuery mode result where
+  QInMode :: QueryInMode mode result -> AnyQuery mode result
+  QInModeSbe :: QueryInModeEraSbe mode result -> AnyQuery mode result
+
+
+data SBEQueryError = QueryEraMismatch' EraMismatch
+                   | EraInModeE AnyCardanoEra AnyConsensusMode
+                   | ExpectedShelleyBasedEra' ()
+                   | SbeAllErr AllEraError
+                   deriving Show
+
+data AllQueryErrors = AllEra AllEraError
+                    | AllSbe SBEQueryError
+                    deriving Show
+
+data AcquiringFailure = AFPointTooOld
+                      | AFPointNotOnChain
+                      deriving (Eq, Show)
+
+data AllEraError = AquFail AcquiringFailure
+                 | UnsuppVer UnsupportedNtcVersionError
+                 deriving Show
+
+-- We separate the queries into two categories, era dependent queries
+-- and non-era dependent queries. This allows us to handle only the possible
+-- errors for each category.
+
+-- QueryInMode queries are era independent, and so can be used with any era.
 data QueryInMode mode result where
   QueryCurrentEra
     :: ConsensusModeIsMultiEra mode
     -> QueryInMode mode AnyCardanoEra
-
-  QueryInEra
-    :: EraInMode era mode
-    -> QueryInEra era result
-    -> QueryInMode mode (Either EraMismatch result)
 
   QueryEraHistory
     :: ConsensusModeIsMultiEra mode
@@ -175,8 +228,8 @@ data QueryInMode mode result where
     -> QueryInMode mode ChainPoint
 
 instance NodeToClientVersionOf (QueryInMode mode result) where
+  nodeToClientVersionOf :: QueryInMode mode result -> NodeToClientVersion
   nodeToClientVersionOf (QueryCurrentEra _) = NodeToClientV_9
-  nodeToClientVersionOf (QueryInEra _ q) = nodeToClientVersionOf q
   nodeToClientVersionOf (QueryEraHistory _) = NodeToClientV_9
   nodeToClientVersionOf QuerySystemStart = NodeToClientV_9
   nodeToClientVersionOf QueryChainBlockNo = NodeToClientV_10
@@ -216,12 +269,25 @@ slotToEpoch slotNo (EraHistory _ interpreter) = case Qry.interpretQuery interpre
 
 deriving instance Show (QueryInMode mode result)
 
+
+data QueryInModeEraSbe mode result where
+
+  QueryInModeEraSbe'
+    :: EraInMode era mode
+    -> QueryInEra era result
+    -> QueryInModeEraSbe mode (Either EraMismatch result)
+
+-- This returns an Either EraMismatch
 data QueryInEra era result where
      QueryByronUpdateState :: QueryInEra ByronEra ByronUpdateState
 
      QueryInShelleyBasedEra :: ShelleyBasedEra era
                             -> QueryInShelleyBasedEra era result
                             -> QueryInEra era result
+
+
+instance NodeToClientVersionOf (QueryInModeEraSbe mode result) where
+  nodeToClientVersionOf (QueryInModeEraSbe' _ q) = nodeToClientVersionOf q
 
 instance NodeToClientVersionOf (QueryInEra era result) where
   nodeToClientVersionOf QueryByronUpdateState = NodeToClientV_9
@@ -561,6 +627,46 @@ fromShelleyRewardAccounts =
 -- Conversions of queries into the consensus types.
 --
 
+toConsensusQueryTotal
+  :: forall mode block result.
+     ConsensusBlockForMode mode ~ block
+  => QueryTotal mode result
+  -> Some (Consensus.Query block)
+toConsensusQueryTotal (QueryTotalBoth q) =
+  case q of
+     QInMode subQ -> toConsensusQuery subQ
+     QInModeSbe subQ -> toConsensusQuerySbe subQ
+toConsensusQueryTotal (QueryTotalSbe q) = toConsensusQuerySbe q
+toConsensusQueryTotal (QueryTotalAnyEra q) = toConsensusQuery q
+
+toConsensusQuerySbe
+  :: forall mode block result.
+     ConsensusBlockForMode mode ~ block
+  => QueryInModeEraSbe mode result
+  -> Some (Consensus.Query block)
+toConsensusQuerySbe (QueryInModeEraSbe' ByronEraInByronMode QueryByronUpdateState) =
+    Some $ Consensus.BlockQuery $
+      Consensus.DegenQuery
+        Consensus.GetUpdateInterfaceState
+
+toConsensusQuerySbe (QueryInModeEraSbe' ByronEraInCardanoMode QueryByronUpdateState) =
+    Some $ Consensus.BlockQuery $
+      Consensus.QueryIfCurrentByron
+        Consensus.GetUpdateInterfaceState
+
+toConsensusQuerySbe (QueryInModeEraSbe' erainmode (QueryInShelleyBasedEra era q)) =
+    case erainmode of
+      ByronEraInByronMode     -> case era of {}
+      ShelleyEraInShelleyMode -> toConsensusQueryShelleyBased erainmode q
+      ByronEraInCardanoMode   -> case era of {}
+      ShelleyEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
+      AllegraEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
+      MaryEraInCardanoMode    -> toConsensusQueryShelleyBased erainmode q
+      AlonzoEraInCardanoMode  -> toConsensusQueryShelleyBased erainmode q
+      BabbageEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
+      ConwayEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
+
+
 toConsensusQuery :: forall mode block result.
                     ConsensusBlockForMode mode ~ block
                  => QueryInMode mode result
@@ -569,11 +675,6 @@ toConsensusQuery (QueryCurrentEra CardanoModeIsMultiEra) =
     Some $ Consensus.BlockQuery $
       Consensus.QueryHardFork
         Consensus.GetCurrentEra
-
-toConsensusQuery (QueryInEra ByronEraInByronMode QueryByronUpdateState) =
-    Some $ Consensus.BlockQuery $
-      Consensus.DegenQuery
-        Consensus.GetUpdateInterfaceState
 
 toConsensusQuery (QueryEraHistory CardanoModeIsMultiEra) =
     Some $ Consensus.BlockQuery $
@@ -585,23 +686,6 @@ toConsensusQuery QuerySystemStart = Some Consensus.GetSystemStart
 toConsensusQuery QueryChainBlockNo = Some Consensus.GetChainBlockNo
 
 toConsensusQuery (QueryChainPoint _) = Some Consensus.GetChainPoint
-
-toConsensusQuery (QueryInEra ByronEraInCardanoMode QueryByronUpdateState) =
-    Some $ Consensus.BlockQuery $
-      Consensus.QueryIfCurrentByron
-        Consensus.GetUpdateInterfaceState
-
-toConsensusQuery (QueryInEra erainmode (QueryInShelleyBasedEra era q)) =
-    case erainmode of
-      ByronEraInByronMode     -> case era of {}
-      ShelleyEraInShelleyMode -> toConsensusQueryShelleyBased erainmode q
-      ByronEraInCardanoMode   -> case era of {}
-      ShelleyEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
-      AllegraEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
-      MaryEraInCardanoMode    -> toConsensusQueryShelleyBased erainmode q
-      AlonzoEraInCardanoMode  -> toConsensusQueryShelleyBased erainmode q
-      BabbageEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
-      ConwayEraInCardanoMode -> toConsensusQueryShelleyBased erainmode q
 
 
 toConsensusQueryShelleyBased
@@ -706,6 +790,119 @@ consensusQueryInEraInMode erainmode =
 -- Conversions of query results from the consensus types.
 --
 
+fromConsensusQueryResultSbe
+  :: forall mode block result result'. ConsensusBlockForMode mode ~ block
+   => QueryInModeEraSbe mode result
+   -> Consensus.Query block result'
+   -> result'
+   -> result
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ByronEraInByronMode
+                                     QueryByronUpdateState) q' r' =
+    case (q', r') of
+      (Consensus.BlockQuery (Consensus.DegenQuery Consensus.GetUpdateInterfaceState),
+       Consensus.DegenQueryResult r'')
+        -> Right (ByronUpdateState r'')
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ByronEraInCardanoMode
+                                     QueryByronUpdateState) q' r' =
+    case q' of
+      Consensus.BlockQuery
+        (Consensus.QueryIfCurrentByron Consensus.GetUpdateInterfaceState)
+        -> bimap fromConsensusEraMismatch ByronUpdateState r'
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ByronEraInByronMode
+                                     (QueryInShelleyBasedEra era _)) _ _ =
+    case era of {}
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ShelleyEraInShelleyMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case (q', r') of
+      (Consensus.BlockQuery (Consensus.DegenQuery q''),
+       Consensus.DegenQueryResult r'')
+        -> Right (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraShelley q q'' r'')
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ByronEraInCardanoMode
+                                     (QueryInShelleyBasedEra era _)) _ _ =
+    case era of {}
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ShelleyEraInCardanoMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case q' of
+      Consensus.BlockQuery (Consensus.QueryIfCurrentShelley q'')
+        -> bimap fromConsensusEraMismatch
+                 (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraShelley q q'')
+                 r'
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' AllegraEraInCardanoMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case q' of
+      Consensus.BlockQuery (Consensus.QueryIfCurrentAllegra q'')
+        -> bimap fromConsensusEraMismatch
+                 (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraAllegra q q'')
+                 r'
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' MaryEraInCardanoMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case q' of
+      Consensus.BlockQuery (Consensus.QueryIfCurrentMary q'')
+        -> bimap fromConsensusEraMismatch
+                 (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraMary q q'')
+                 r'
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' AlonzoEraInCardanoMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case q' of
+      Consensus.BlockQuery (Consensus.QueryIfCurrentAlonzo q'')
+        -> bimap fromConsensusEraMismatch
+                 (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraAlonzo q q'')
+                 r'
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' BabbageEraInCardanoMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case q' of
+      Consensus.BlockQuery (Consensus.QueryIfCurrentBabbage q'')
+        -> bimap fromConsensusEraMismatch
+                 (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraBabbage q q'')
+                 r'
+      _ -> fromConsensusQueryResultMismatch
+
+fromConsensusQueryResultSbe (QueryInModeEraSbe' ConwayEraInCardanoMode
+                                     (QueryInShelleyBasedEra _era q)) q' r' =
+    case q' of
+      Consensus.BlockQuery (Consensus.QueryIfCurrentConway q'')
+        -> bimap fromConsensusEraMismatch
+                 (fromConsensusQueryResultShelleyBased
+                    ShelleyBasedEraConway q q'')
+                 r'
+      _ -> fromConsensusQueryResultMismatch
+
+
+fromConsensusQueryResultTotal
+  :: forall mode block result result'. ConsensusBlockForMode mode ~ block
+  => QueryTotal mode result
+  -> Consensus.Query block result'
+  -> (result' -> result)
+fromConsensusQueryResultTotal (QueryTotalBoth q) =
+  case q of
+    QInMode subQ -> fromConsensusQueryResult subQ
+    QInModeSbe subQ -> fromConsensusQueryResultSbe subQ
+fromConsensusQueryResultTotal (QueryTotalSbe q) = fromConsensusQueryResultSbe q
+fromConsensusQueryResultTotal (QueryTotalAnyEra q) = fromConsensusQueryResult q
+
+
 fromConsensusQueryResult :: forall mode block result result'. ConsensusBlockForMode mode ~ block
                          => QueryInMode mode result
                          -> Consensus.Query block result'
@@ -741,98 +938,7 @@ fromConsensusQueryResult (QueryCurrentEra CardanoModeIsMultiEra) q' r' =
         -> anyEraInModeToAnyEra (fromConsensusEraIndex CardanoMode r')
       _ -> fromConsensusQueryResultMismatch
 
-fromConsensusQueryResult (QueryInEra ByronEraInByronMode
-                                     QueryByronUpdateState) q' r' =
-    case (q', r') of
-      (Consensus.BlockQuery (Consensus.DegenQuery Consensus.GetUpdateInterfaceState),
-       Consensus.DegenQueryResult r'')
-        -> Right (ByronUpdateState r'')
-      _ -> fromConsensusQueryResultMismatch
 
-fromConsensusQueryResult (QueryInEra ByronEraInCardanoMode
-                                     QueryByronUpdateState) q' r' =
-    case q' of
-      Consensus.BlockQuery
-        (Consensus.QueryIfCurrentByron Consensus.GetUpdateInterfaceState)
-        -> bimap fromConsensusEraMismatch ByronUpdateState r'
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra ByronEraInByronMode
-                                     (QueryInShelleyBasedEra era _)) _ _ =
-    case era of {}
-
-fromConsensusQueryResult (QueryInEra ShelleyEraInShelleyMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case (q', r') of
-      (Consensus.BlockQuery (Consensus.DegenQuery q''),
-       Consensus.DegenQueryResult r'')
-        -> Right (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraShelley q q'' r'')
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra ByronEraInCardanoMode
-                                     (QueryInShelleyBasedEra era _)) _ _ =
-    case era of {}
-
-fromConsensusQueryResult (QueryInEra ShelleyEraInCardanoMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case q' of
-      Consensus.BlockQuery (Consensus.QueryIfCurrentShelley q'')
-        -> bimap fromConsensusEraMismatch
-                 (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraShelley q q'')
-                 r'
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra AllegraEraInCardanoMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case q' of
-      Consensus.BlockQuery (Consensus.QueryIfCurrentAllegra q'')
-        -> bimap fromConsensusEraMismatch
-                 (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraAllegra q q'')
-                 r'
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra MaryEraInCardanoMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case q' of
-      Consensus.BlockQuery (Consensus.QueryIfCurrentMary q'')
-        -> bimap fromConsensusEraMismatch
-                 (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraMary q q'')
-                 r'
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra AlonzoEraInCardanoMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case q' of
-      Consensus.BlockQuery (Consensus.QueryIfCurrentAlonzo q'')
-        -> bimap fromConsensusEraMismatch
-                 (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraAlonzo q q'')
-                 r'
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra BabbageEraInCardanoMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case q' of
-      Consensus.BlockQuery (Consensus.QueryIfCurrentBabbage q'')
-        -> bimap fromConsensusEraMismatch
-                 (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraBabbage q q'')
-                 r'
-      _ -> fromConsensusQueryResultMismatch
-
-fromConsensusQueryResult (QueryInEra ConwayEraInCardanoMode
-                                     (QueryInShelleyBasedEra _era q)) q' r' =
-    case q' of
-      Consensus.BlockQuery (Consensus.QueryIfCurrentConway q'')
-        -> bimap fromConsensusEraMismatch
-                 (fromConsensusQueryResultShelleyBased
-                    ShelleyBasedEraConway q q'')
-                 r'
-      _ -> fromConsensusQueryResultMismatch
 
 fromConsensusQueryResultShelleyBased
   :: forall era ledgerera protocol result result'.

@@ -1,9 +1,12 @@
 module Cardano.Api.Pretty
-  ( Ann,
+  ( Pretty(..),
+    Doc,
+    Ann,
     putLn,
     hPutLn,
-    renderDefault,
+    renderLazyDefault,
     renderStringDefault,
+    renderDefault,
 
     black,
     red,
@@ -13,10 +16,13 @@ module Cardano.Api.Pretty
     magenta,
     cyan,
     white,
+
+    InstanceShow(..),
   ) where
 
 import           Control.Exception (bracket_)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Text (Text)
 import           Prettyprinter
 import           Prettyprinter.Render.Terminal
 
@@ -28,6 +34,11 @@ import qualified System.IO.Unsafe as IO
 
 type Ann = AnsiStyle
 
+newtype InstanceShow a = InstanceShow a deriving Show
+
+instance Show a => Pretty (InstanceShow a) where
+  pretty (InstanceShow a) = pretty (show a)
+
 sem :: IO.QSem
 sem = IO.unsafePerformIO $ IO.newQSem 1
 {-# NOINLINE sem #-}
@@ -36,16 +47,19 @@ consoleBracket :: IO a -> IO a
 consoleBracket = bracket_ (IO.waitQSem sem) (IO.signalQSem sem)
 
 putLn :: MonadIO m => Doc AnsiStyle -> m ()
-putLn = liftIO . consoleBracket . TextLazy.putStrLn . renderDefault
+putLn = liftIO . consoleBracket . TextLazy.putStrLn . renderLazyDefault
 
 hPutLn :: MonadIO m => IO.Handle -> Doc AnsiStyle -> m ()
-hPutLn h = liftIO . consoleBracket . TextLazy.hPutStr h . renderDefault
+hPutLn h = liftIO . consoleBracket . TextLazy.hPutStr h . renderLazyDefault
 
 renderStringDefault :: Doc AnsiStyle -> String
-renderStringDefault =  TextLazy.unpack . renderDefault
+renderStringDefault = TextLazy.unpack . renderLazyDefault
 
-renderDefault :: Doc AnsiStyle -> TextLazy.Text
-renderDefault =  renderLazy . layoutPretty defaultLayoutOptions
+renderLazyDefault :: Doc AnsiStyle -> TextLazy.Text
+renderLazyDefault = renderLazy . layoutPretty defaultLayoutOptions
+
+renderDefault :: Doc AnsiStyle -> Text
+renderDefault = renderStrict . layoutPretty defaultLayoutOptions
 
 black :: Doc AnsiStyle -> Doc AnsiStyle
 black = annotate (color Black)

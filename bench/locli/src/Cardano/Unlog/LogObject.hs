@@ -28,8 +28,8 @@ module Cardano.Unlog.LogObject
   )
 where
 
-import           Cardano.Prelude hiding (Text, head, show)
-import           Prelude (head, id, show, unzip3)
+import           Cardano.Prelude hiding (Text, show)
+import           Prelude (id, show, unzip3)
 
 import           Control.Monad (fail)
 import qualified Data.Aeson as AE
@@ -197,7 +197,12 @@ interpreters = map3ple Map.fromList . unzip3 . fmap ent $
   , (,,,) "TraceBlockContext" "Forge.BlockContext" "Forge.Loop.BlockContext" $
     \v -> LOBlockContext
             <$> v .: "current slot"
-            <*> v .: "tipBlockNo"
+            <*> ((v .: "tipBlockNo")
+                 -- BlockContext's block number is inconsistent
+                 -- with the rest of traces.
+                 <&> BlockNo . fromIntegral . pred @Int)
+            <*> (v .: "tip"
+                 <&> hashFromPoint)
 
   , (,,,) "TraceLedgerState" "Forge.LedgerState" "Forge.Loop.LedgerState" $
     \v -> LOLedgerState
@@ -337,7 +342,7 @@ interpreters = map3ple Map.fromList . unzip3 . fmap ent $
   ]
  where
    hashFromPoint :: LText.Text -> Hash
-   hashFromPoint = Hash . fromText . Prelude.head . LText.splitOn "@"
+   hashFromPoint = Hash . fromText . LText.take 64
 
    ent :: (a,b,c,d) -> ((a,d), (b,d), (c, d))
    ent (a,b,c,d) = ((a,d), (b,d), (c, d))
@@ -361,6 +366,7 @@ data LOBody
   | LOBlockContext
     { loSlotNo           :: !SlotNo
     , loBlockNo          :: !BlockNo
+    , loBlock            :: !Hash
     }
   | LOLedgerState
     { loSlotNo           :: !SlotNo

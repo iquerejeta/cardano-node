@@ -257,27 +257,33 @@ mbeBlockNo = mapMbe bfeBlockNo boeBlockNo (const (-1))
 type MachHashBlockEvents a
   =  Map.Map Hash (MachBlockEvents a)
 
+-- | Machine's private view of the chain:
+--   the top level list maps BlockNo to sublists,
+--   which account for height/slot battles.
+type MachHeightBlockEvents a
+  = [[MachBlockEvents a]]
+
 -- An accumulator for: tip-block-events & the set of all blocks events
 data MachView
   = MachView
-  { mvHost     :: !Host
-  , mvBlocks   :: !(MachHashBlockEvents UTCTime)
-  , mvStarted  :: !(SMaybe UTCTime)
-  , mvBlkCtx   :: !(SMaybe UTCTime)
-  , mvLgrState :: !(SMaybe UTCTime)
-  , mvLgrView  :: !(SMaybe UTCTime)
-  , mvLeading  :: !(SMaybe UTCTime)
-  , mvTicked   :: !(SMaybe UTCTime)
-  , mvMemSnap  :: !(SMaybe UTCTime)
+  { mvHost         :: !Host
+  , mvHashBlocks   :: !(MachHashBlockEvents UTCTime)
+  , mvStarted      :: !(SMaybe UTCTime)
+  , mvBlkCtx       :: !(SMaybe UTCTime)
+  , mvLgrState     :: !(SMaybe UTCTime)
+  , mvLgrView      :: !(SMaybe UTCTime)
+  , mvLeading      :: !(SMaybe UTCTime)
+  , mvTicked       :: !(SMaybe UTCTime)
+  , mvMemSnap      :: !(SMaybe UTCTime)
   }
   deriving (FromJSON, Generic, NFData, ToJSON)
 
 mvForges :: MachView -> [ForgerEvents UTCTime]
-mvForges = mapMaybe (mbeForge . snd) . Map.toList . mvBlocks
+mvForges = mapMaybe (mbeForge . snd) . Map.toList . mvHashBlocks
 
 machViewMaxBlock :: MachView -> MachBlockEvents UTCTime
 machViewMaxBlock MachView{..} =
-  Map.elems mvBlocks
+  Map.elems mvHashBlocks
   & \case
        [] -> MBE $ BPError { eHost=mvHost, eBlock=Hash "Genesis", eLO=Nothing, eDesc=BPENoBlocks }
        xs -> maximumBy ordBlockEv xs
@@ -333,7 +339,7 @@ rebuildChain run@Run{genesis} flts fltNames xs@(fmap snd -> machViews) =
           (uncurry Interval $ both beBlockNo firstLastBlk)
           (fromIntegral . unSlotNo . uncurry (on (flip (-)) beSlotNo) $ firstLastBlk)
 
-   eventMaps      = machViews <&> mvBlocks
+   eventMaps      = machViews <&> mvHashBlocks
 
    finalBlockEv   = maximumBy ordBlockEv $ machViewMaxBlock <$> machViews
 
@@ -378,10 +384,10 @@ rebuildChain run@Run{genesis} flts fltNames xs@(fmap snd -> machViews) =
                             (maybe (Just $ Set.singleton (mbeBlock mbe))
                                    (Just . Set.insert (mbeBlock mbe)))
                             (mbeBlockNo mbe))
-                   accHeight mvBlocks)
+                   accHeight mvHashBlocks)
                  (Map.insert
                    mvHost
-                   (Map.elems mvBlocks
+                   (Map.elems mvHashBlocks
                     & Set.fromList . fmap bfeBlock . mapMaybe mbeForge)
                    accHost))
        (mempty, mempty) machViews
@@ -396,7 +402,7 @@ rebuildChain run@Run{genesis} flts fltNames xs@(fmap snd -> machViews) =
                 , "\nErrors:\n"
                 ] ++ intercalate "\n" (show <$> ers)
               blkEvs@(forgerEv:_, oEvs, ers) ->
-                go (bfePrevBlock forgerEv) (liftBlockEvents forgerEv oEvs ers : acc)
+                go 6(bfePrevBlock forgerEv) (liftBlockEvents forgerEv oEvs ers : acc)
 
    liftBlockEvents :: ForgerEvents NominalDiffTime -> [ObserverEvents NominalDiffTime] -> [BPError] -> BlockEvents
    liftBlockEvents ForgerEvents{bfeHost=host, ..} os errs = blockEvents
@@ -626,15 +632,15 @@ blockEventMapsFromLogObjects run (f@(unJsonLogfile -> fp), xs@(x:_)) =
  where
    initial =
      MachView
-     { mvHost     = loHost x
-     , mvBlocks   = mempty
-     , mvStarted  = SNothing
-     , mvBlkCtx   = SNothing
-     , mvLgrState = SNothing
-     , mvLgrView  = SNothing
-     , mvLeading  = SNothing
-     , mvTicked   = SNothing
-     , mvMemSnap  = SNothing
+     { mvHost         = loHost x
+     , mvHashBlocks   = mempty
+     , mvStarted      = SNothing
+     , mvBlkCtx       = SNothing
+     , mvLgrState     = SNothing
+     , mvLgrView      = SNothing
+     , mvLeading      = SNothing
+     , mvTicked       = SNothing
+     , mvMemSnap      = SNothing
      }
 
 blockPropMachEventsStep :: Run -> JsonLogfile -> MachView -> LogObject -> MachView
@@ -772,10 +778,10 @@ blockPropMachEventsStep run@Run{genesis} (JsonLogfile fp) mv@MachView{..} lo = c
    fail host hash desc = MBE $ fail' host hash desc
 
    getBlock :: Hash -> Maybe (MachBlockEvents UTCTime)
-   getBlock k = Map.lookup k mvBlocks
+   getBlock k = Map.lookup k mvHashBlocks
 
    doInsert :: Hash -> MachBlockEvents UTCTime -> MachView
-   doInsert k x = mv { mvBlocks = Map.insert k x mvBlocks }
+   doInsert k x = mv { mvHashBlocks = Map.insert k x mvHashBlocks }
 
 deltifyEvents :: MachBlockEvents UTCTime -> MachBlockEvents NominalDiffTime
 deltifyEvents (MBE e) = MBE e

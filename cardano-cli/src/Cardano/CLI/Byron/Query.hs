@@ -10,6 +10,7 @@ module Cardano.CLI.Byron.Query
   ) where
 
 import           Cardano.Api
+import           Cardano.Api.Pretty
 
 import           Control.Monad.IO.Unlift (MonadIO (..))
 import           Control.Monad.Trans (MonadTrans (..))
@@ -18,7 +19,6 @@ import           Control.Monad.Trans.Except.Extra (left, onLeft)
 import           Data.Aeson.Encode.Pretty (encodePretty)
 import qualified Data.ByteString.Lazy as LB
 import           Data.Function ((&))
-import           Data.Text (Text)
 import qualified Data.Text.Encoding as Text
 import qualified Data.Text.IO as Text
 
@@ -28,7 +28,7 @@ import qualified Data.Text.IO as Text
 newtype ByronQueryError = ByronQueryEnvVarSocketErr EnvSocketError
   deriving Show
 
-renderByronQueryError :: ByronQueryError -> Text
+renderByronQueryError :: ByronQueryError -> Doc Ann
 renderByronQueryError err =
   case err of
     ByronQueryEnvVarSocketErr sockEnvErr -> renderEnvSocketError sockEnvErr

@@ -599,19 +599,19 @@ echo "$ROOT/run/all.sh"
 echo
 echo "In order to do the protocol updates, proceed as follows:"
 echo
-echo "  0. invoke ./scripts/byron-to-alonzo/mkfiles.sh"
+echo "  0. invoke ./scripts/cardano/mkfiles.sh"
 echo "  1. wait for the nodes to start producing blocks"
-echo "  2. invoke ./scripts/byron-to-alonzo/update-1.sh <N>"
+echo "  2. invoke ./scripts/cardano/update-1.sh <N>"
 echo "     if you are early enough in the epoch N = current epoch"
 echo "     if not N = current epoch + 1. This applies for all update proposals"
 echo "     wait for the next epoch for the update to take effect"
 echo
-echo "  3. invoke ./scripts/byron-to-alonzo/update-2.sh"
+echo "  3. invoke ./scripts/cardano/update-2.sh"
 echo "  4. restart the nodes"
 echo "     wait for the next epoch for the update to take effect"
 echo "     you should be in the Shelley era if the update was successful"
 echo
-echo "  5. invoke ./scripts/byron-to-alonzo/update-3.sh <N>"
+echo "  5. invoke ./scripts/cardano/update-3.sh <N>"
 echo "     Here, <N> the current epoch (2 if you're quick)."
 echo "     If you provide the wrong epoch, you will see an error"
 echo "     that will tell you the current epoch, and can run"
@@ -619,11 +619,11 @@ echo "     the script again."
 echo "  6. restart the nodes"
 echo "     wait for the next epoch for the update to take effect"
 echo "     you should be in the Allegra era if the update was successful"
-echo "  7. invoke ./scripts/byron-to-alonzo/update-4.sh <N>"
+echo "  7. invoke ./scripts/cardano/update-4.sh <N>"
 echo "  8. restart the nodes"
 echo "     wait for the next epoch for the update to take effect"
 echo "     you should be in the Mary era if the update was successful"
-echo "  9. invoke ./scripts/byron-to-alonzo/update-5.sh <N>"
+echo "  9. invoke ./scripts/cardano/update-5.sh <N>"
 echo "     wait for the next epoch for the update to take effect"
 echo "     you should be in the Alonzo era if the update was successful"
 echo
@@ -658,7 +658,22 @@ echo ""
 echo "EnableLogMetrics: False" >> ${ROOT}/configuration.yaml
 echo "EnableLogging: True" >> ${ROOT}/configuration.yaml
 
-if [ "$1" = "alonzo" ]; then
+if [ "$1" = "babbage" ]; then
+  echo "TestShelleyHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
+  echo "TestAllegraHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
+  echo "TestMaryHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
+  echo "TestAlonzoHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
+  echo "TestBabbageHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
+  echo "ExperimentalHardForksEnabled: True" >> ${ROOT}/configuration.yaml
+  echo "ExperimentalProtocolsEnabled: True" >> ${ROOT}/configuration.yaml
+
+  $SED -i ${ROOT}/configuration.yaml \
+      -e 's/LastKnownBlockVersion-Major: 1/LastKnownBlockVersion-Major: 7/'
+
+  # Copy the cost model
+  echo "Nodes will start in Alonzo era from epoch 0"
+
+elif [ "$1" = "alonzo" ]; then
   echo "TestShelleyHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
   echo "TestAllegraHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
   echo "TestMaryHardForkAtEpoch: 0" >> ${ROOT}/configuration.yaml
